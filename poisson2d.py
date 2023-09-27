@@ -132,8 +132,8 @@ class Poisson2D:
         The value of u(x, y)
 
         """
-        ix = np.where(xij == x)
-        iy = np.where(yij == y)
+        ix = np.where(xij == x)[0]
+        iy = np.where(yij == y)[0]
         return self.U[ix,iy]
 
 def test_convergence_poisson2d(): #Michael
