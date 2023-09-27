@@ -32,31 +32,51 @@ class Poisson2D:
 
     def create_mesh(self, N):
         """Create 2D mesh and store in self.xij and self.yij"""
-        # self.xij, self.yij ...
-        raise NotImplementedError
+        self.N = N
+        self.dx = self.L/N
+        self.dy = self.L/N
+        x = self.x = np.linspace(0, self.L, self.N+1)
+        y = self.y = np.linspace(0, self.L, self.N+1)
+        self.xij, self.yij = np.meshgrid(x,y,indexing='ij')
 
     def D2(self):
         """Return second order differentiation matrix"""
-        raise NotImplementedError
+        D = sparse.diags([1,-2,1], [-1,0,1], (self.N+1, self.N+1),'lil')
+        D[0, :4] = 2, -5, 4, -1
+        D[-1, -4:] = -1, 4, -5, 2
+        D /= self.dx**2  #dobbelt opp?
+        return D
 
     def laplace(self):
         """Return vectorized Laplace operator"""
-        raise NotImplementedError
+        D2x = (1./self.dx**2)*self.D2()
+        D2y = (1./self.dy**2)*self.D2()
+        return sparse.kron(D2x, sparse.eye(self.Ny+1)) + sparse.kron(sparse.eye(self.Nx+1),  D2y)
 
     def get_boundary_indices(self):
         """Return indices of vectorized matrix that belongs to the boundary"""
-        raise NotImplementedError
+        B = np.ones((self.N+1, self.N+1), dtype=bool) #enere
+        B[1:-1,1:-1] = 0 #null i midten
+        bnds = np.where(B.ravel() == 1)[0] #hvor enerne er i B
+        return bnds
 
-    def assemble(self):
+    def assemble(self,f):
         """Return assembled matrix A and right hand side vector b"""
-        # return A, b
-        raise NotImplementedError
+        A = self.laplace()
+        A = A.tolil()
+        bnds = self.get_boundary_indices()
+        for i in bnds:
+            A[i] = 0 #rundt kanten
+            A[i,i] = 1 #oppe til venstre og nede til høyre
+        b = sp.lambdify((self.x,self.y),f)(self.xij, self.yij)
+        b[bnds] = 0
+        return A.toscr(), b
 
     def l2_error(self, u):
         """Return l2-error norm"""
         raise NotImplementedError
 
-    def __call__(self, N):
+    def __call__(self, N): #Michael
         """Solve Poisson's equation.
 
         Parameters
@@ -74,7 +94,7 @@ class Poisson2D:
         self.U = sparse.linalg.spsolve(A, b.flatten()).reshape((N+1, N+1))
         return self.U
 
-    def convergence_rates(self, m=6):
+    def convergence_rates(self, m=6): #Michael
         """Compute convergence rates for a range of discretizations
 
         Parameters
@@ -115,14 +135,14 @@ class Poisson2D:
         """
         raise NotImplementedError
 
-def test_convergence_poisson2d():
+def test_convergence_poisson2d(): #Michael
     # This exact solution is NOT zero on the entire boundary
     ue = sp.exp(sp.cos(4*sp.pi*x)*sp.sin(2*sp.pi*y))
     sol = Poisson2D(1, ue)
     r, E, h = sol.convergence_rates()
     assert abs(r[-1]-2) < 1e-2
 
-def test_interpolation():
+def test_interpolation(): #Michael
     ue = sp.exp(sp.cos(4*sp.pi*x)*sp.sin(2*sp.pi*y))
     sol = Poisson2D(1, ue)
     U = sol(100)
