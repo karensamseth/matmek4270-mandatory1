@@ -44,7 +44,6 @@ class Poisson2D:
         D = sparse.diags([1,-2,1], [-1,0,1], (self.N+1, self.N+1),'lil')
         D[0, :4] = 2, -5, 4, -1
         D[-1, -4:] = -1, 4, -5, 2
-        D /= self.dx**2  #dobbelt opp?
         return D
 
     def laplace(self):
@@ -74,7 +73,8 @@ class Poisson2D:
 
     def l2_error(self, u):
         """Return l2-error norm"""
-        raise NotImplementedError
+        uj = sp.lambdify([x,y], ue)(self.x, self.y) #evaluerer ue i meshpoints
+        return np.sqrt(self.dx*np.sum((uj-u)**2))        
 
     def __call__(self, N): #Michael
         """Solve Poisson's equation.
@@ -92,7 +92,6 @@ class Poisson2D:
         self.create_mesh(N)
         A, b = self.assemble()
         self.U = sparse.linalg.spsolve(A, b.flatten()).reshape((N+1, N+1))
-        return self.U
 
     def convergence_rates(self, m=6): #Michael
         """Compute convergence rates for a range of discretizations
@@ -133,7 +132,9 @@ class Poisson2D:
         The value of u(x, y)
 
         """
-        raise NotImplementedError
+        ix = np.where(xij == x)
+        iy = np.where(yij == y)
+        return self.U[ix,iy]
 
 def test_convergence_poisson2d(): #Michael
     # This exact solution is NOT zero on the entire boundary
