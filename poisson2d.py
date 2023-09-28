@@ -73,7 +73,7 @@ class Poisson2D:
 
     def l2_error(self, u):
         """Return l2-error norm"""
-        uj = sp.lambdify([x,y], ue)(self.x, self.y) #evaluerer ue i meshpoints
+        uj = sp.lambdify([x,y], self.ue)(self.x, self.y) #evaluerer ue i meshpoints
         return np.sqrt(self.dx*np.sum((uj-u)**2))        
 
     def __call__(self, N): #Michael
