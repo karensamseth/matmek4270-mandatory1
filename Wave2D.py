@@ -7,15 +7,25 @@ from matplotlib import cm
 x, y, t = sp.symbols('x,y,t')
 
 class Wave2D:
-
+    """
+    Solves the wave equation for 2D domain [0,1]**2 and time [0,T].
+    Dirichlet initial condition.
+    """
     def create_mesh(self, N, sparse=False):
         """Create 2D mesh and store in self.xij and self.yij"""
-        # self.xji, self.yij = ...
-        raise NotImplementedError
+        self.L = 1
+        self.N = N
+        self.h = self.L/N #dx = dy
+        x = self.x = np.linspace(0, self.L, self.N+1)
+        y = self.y = np.linspace(0, self.L, self.N+1)
+        self.xij, self.yij = np.meshgrid(x,y,indexing='ij')
 
-    def D2(self, N):
+    def D2(self):
         """Return second order differentiation matrix"""
-        raise NotImplementedError
+        D = sparse.diags([1,-2,1], [-1,0,1], (self.N+1, self.N+1),'lil')
+        D[0, :4] = 2, -5, 4, -1
+        D[-1, -4:] = -1, 4, -5, 2
+        return D
 
     @property
     def w(self):
@@ -37,11 +47,11 @@ class Wave2D:
             Parameters for the standing wave
         """
         raise NotImplementedError
-
+        
     @property
     def dt(self):
         """Return the time step"""
-        raise NotImplementedError
+        return self.cfl*self.h/self.c
 
     def l2_error(self, u, t0):
         """Return l2-error norm
@@ -83,7 +93,33 @@ class Wave2D:
         If store_data > 0, then return a dictionary with key, value = timestep, solution
         If store_data == -1, then return the two-tuple (h, l2-error)
         """
-        raise NotImplementedError
+        self.N = N
+        self.Nt = Nt
+        self.cfl = cfl
+        self.c = c
+        self.mx = mx
+        self.my = my
+        Unp1, Un, Unm1 = np.zeros((2, self.N+1, self.N+1))
+        Unm1[:] = u0(self.xij, self.yij)    #u0 fra hvor?
+        Un[:] = Unm1[:] + 0.5*(self.cfl/self.dt)**2* (self.D2@Un + Un@self.D2.transpose())
+        plotdata = {0: Unm1.copy()}
+        if store_data == -1:
+            return (self.h, self.l2_error)
+        elif storedata > 1:
+            return self.dt
+        for n in range(1, self.Nt):
+            Unp1[:] = 2*Un - Unm1 + (self.C*self.dt)**2* (self.D2@Un + Un@ self.D2.transpose())
+            # Boundary conditions:
+            Unp1[0] = 0
+            Unp1[-1] = 0
+            Unp1[:,-1] = 0
+            Unp1[:,0] = 0
+            # Swap solutions:
+            Unm1[:] = Un
+            Un[:] = Unp1
+            if n % store_data == 0:
+                plotdata[n] = Unm1.copy() #which is what Un was earlier
+        return self.xij, self.yij, plotdata
 
     def convergence_rates(self, m=4, cfl=0.1, Nt=10, mx=3, my=3):
         """Compute convergence rates for a range of discretizations
