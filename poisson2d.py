@@ -62,16 +62,18 @@ class Poisson2D:
 
     def assemble(self):
         """Return assembled matrix A and right hand side vector b"""
-        f = sp.diff(sp.diff(self.ue,x),x)
+        f = ue.diff(x, 2) + ue.diff(y, 2)
+        F = sp.lambdify((x, y), f)(self.xij,self.yij)
+        print(F)
         A = self.laplace()
         A = A.tolil()
         bnds = self.get_boundary_indices()
         for i in bnds:
             A[i] = 0 #rundt kanten
             A[i,i] = 1 #oppe til venstre og nede til høyre
-        b = sp.lambdify((self.x,self.y),f)(self.xij, self.yij)
+        b = F.ravel()
         b[bnds] = 0
-        return A.toscr(), b
+        return A.tocsr(), b
 
     def l2_error(self, u):
         """Return l2-error norm"""
@@ -154,7 +156,7 @@ def test_interpolation(): #Michael
     assert abs(sol.eval(sol.h/2, 1-sol.h/2) - ue.subs({x: sol.h, y: 1-sol.h/2}).n()) < 1e-3
 
 if __name__ == '__main__':
-    ue = x**2
+    ue = x**3
     sol = Poisson2D(10, ue)
     U = sol(10)
     print(sol.eval(2,2))
