@@ -38,6 +38,7 @@ class Poisson2D:
         x = self.x = np.linspace(0, self.L, self.N+1)
         y = self.y = np.linspace(0, self.L, self.N+1)
         self.xij, self.yij = np.meshgrid(x,y,indexing='ij')
+        return x,y
 
     def D2(self):
         """Return second order differentiation matrix"""
@@ -50,7 +51,7 @@ class Poisson2D:
         """Return vectorized Laplace operator"""
         D2x = (1./self.dx**2)*self.D2()
         D2y = (1./self.dy**2)*self.D2()
-        return sparse.kron(D2x, sparse.eye(self.Ny+1)) + sparse.kron(sparse.eye(self.Nx+1),  D2y)
+        return sparse.kron(D2x, sparse.eye(self.N+1)) + sparse.kron(sparse.eye(self.N+1),  D2y)
 
     def get_boundary_indices(self):
         """Return indices of vectorized matrix that belongs to the boundary"""
@@ -59,8 +60,9 @@ class Poisson2D:
         bnds = np.where(B.ravel() == 1)[0] #hvor enerne er i B
         return bnds
 
-    def assemble(self,f):
+    def assemble(self):
         """Return assembled matrix A and right hand side vector b"""
+        f = self.laplace()*self.ue
         A = self.laplace()
         A = A.tolil()
         bnds = self.get_boundary_indices()
@@ -92,6 +94,7 @@ class Poisson2D:
         self.create_mesh(N)
         A, b = self.assemble()
         self.U = sparse.linalg.spsolve(A, b.flatten()).reshape((N+1, N+1))
+        return self.U
 
     def convergence_rates(self, m=6): #Michael
         """Compute convergence rates for a range of discretizations
@@ -115,11 +118,11 @@ class Poisson2D:
             u = self(N0)
             E.append(self.l2_error(u))
             h.append(self.h)
-            N0 *= 2
+            N0 /= 2
         r = [np.log(E[i-1]/E[i])/np.log(h[i-1]/h[i]) for i in range(1, m+1, 1)]
         return r, np.array(E), np.array(h)
 
-    def eval(self, x, y):
+    def eval(self, x_coord, y_coord):
         """Return u(x, y)
 
         Parameters
@@ -132,8 +135,8 @@ class Poisson2D:
         The value of u(x, y)
 
         """
-        ix = np.where(self.xij == x)[0]
-        iy = np.where(self.yij == y)[0]
+        ix = np.where(self.x == x_coord)[0]
+        iy = np.where(self.y == y_coord)[0]
         return self.U[ix,iy]
 
 def test_convergence_poisson2d(): #Michael
@@ -150,3 +153,8 @@ def test_interpolation(): #Michael
     assert abs(sol.eval(0.52, 0.63) - ue.subs({x: 0.52, y: 0.63}).n()) < 1e-3
     assert abs(sol.eval(sol.h/2, 1-sol.h/2) - ue.subs({x: sol.h, y: 1-sol.h/2}).n()) < 1e-3
 
+if __name__ == '__main__':
+    ue = x**2
+    sol = Poisson2D(10, ue)
+    U = sol(10)
+    print(sol.eval(2,2))
