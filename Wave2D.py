@@ -63,7 +63,12 @@ class Wave2D:
         t0 : number
             The time of the comparison
         """
-        raise NotImplementedError
+        Esum = 0
+        for n in range(self.N+1):
+            Un = self.plotdata(n)
+            en = Un-self.ue(self.mx,self.my)  #dette er nok feil...
+            Esum = en**2
+        return E = np.sqrt(self.h**2*Esum)
 
     def apply_bcs(self):
         raise NotImplementedError
@@ -119,7 +124,7 @@ class Wave2D:
             Un[:] = Unp1
             if n % store_data == 0:
                 plotdata[n] = Unm1.copy() #which is what Un was earlier
-        return self.xij, self.yij, plotdata
+        return self.xij, self.yij, self.plotdata
 
     def convergence_rates(self, m=4, cfl=0.1, Nt=10, mx=3, my=3):
         """Compute convergence rates for a range of discretizations
