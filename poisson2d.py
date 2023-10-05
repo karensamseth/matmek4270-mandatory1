@@ -62,7 +62,7 @@ class Poisson2D:
 
     def assemble(self):
         """Return assembled matrix A and right hand side vector b"""
-        f = self.laplace()*self.ue
+        f = sp.diff(sp.diff(self.ue,x),x)
         A = self.laplace()
         A = A.tolil()
         bnds = self.get_boundary_indices()
