@@ -1,6 +1,7 @@
 import numpy as np
 import sympy as sp
 import scipy.sparse as sparse
+import matplotlib.pyplot as plt
 
 x, y = sp.symbols('x,y')
 
@@ -71,8 +72,13 @@ class Poisson2D:
         for i in bnds:
             A[i] = 0 #rundt kanten
             A[i,i] = 1 #oppe til venstre og nede til høyre
+        #plt.spy(A, ms=0.4)
+        #plt.show()
+        #raise RuntimeError
         b = F.ravel()
-        b[bnds] = 0
+        ue_func = sp.lambdify((x,y),ue)(self.xij, self.yij).ravel()
+        print("ue=\n", ue_func.reshape((self.N+1, self.N+1)))
+        b[bnds] = ue_func[bnds]
         print("b=\n",b.flatten().reshape((self.N+1, self.N+1)))
         return A.tocsr(), b
 
