@@ -30,9 +30,11 @@ class Wave2D:
     @property
     def w(self):
         """Return the dispersion coefficient"""
-        raise NotImplementedError
+        kx = self.mx*sp.pi
+        ky = self.my*sp.pi
+        return self.c*np.sqrt(kx**2+ky**2)
 
-    def ue(self, mx, my):
+    def ue(self, mx, my,x,y,t): #Michael
         """Return the exact standing wave"""
         return sp.sin(mx*sp.pi*x)*sp.sin(my*sp.pi*y)*sp.cos(self.w*t)
 
@@ -46,7 +48,9 @@ class Wave2D:
         mx, my : int
             Parameters for the standing wave
         """
-        raise NotImplementedError
+        self.N = N
+        self.mx = mx
+        self.my = my
         
     @property
     def dt(self):
@@ -68,10 +72,21 @@ class Wave2D:
             Un = self.plotdata(n)
             en = Un-self.ue(self.mx,self.my)  #dette er nok feil...
             Esum = en**2
-        return E = np.sqrt(self.h**2*Esum)
+        return np.sqrt(self.h**2*Esum)
 
-    def apply_bcs(self):
-        raise NotImplementedError
+    def apply_bcs(self, u=None):
+        """Apply Dirichlet boundary conditions to solution vector
+
+        Parameters
+        ----------
+        u : array, optional
+            The solution array to fix at boundaries.
+            If not probided, use self.unp1
+
+        """
+        u = u if u is not None else self.Unp1
+        u[0] = 0
+        u[-1] = 0
 
     def __call__(self, N, Nt, cfl=0.5, c=1.0, mx=3, my=3, store_data=-1):
         """Solve the wave equation
@@ -105,20 +120,18 @@ class Wave2D:
         self.mx = mx
         self.my = my
         Unp1, Un, Unm1 = np.zeros((2, self.N+1, self.N+1))
-        Unm1[:] = u0(self.xij, self.yij)    #u0 fra hvor?
-        Un[:] = Unm1[:] + 0.5*(self.cfl/self.dt)**2* (self.D2@Un + Un@self.D2.transpose())
+        D = (1/self.h)*self.D2()
+        Unm1[:] = self.ue(self.mx, self.my, self.xij, self.yij, t=0)    #u0 initial condition, ie. ue at t=0
+        Un[:] = Unm1[:] + 0.5*(self.cfl/self.dt)**2* (D@Un + Un@D.transpose())
         plotdata = {0: Unm1.copy()}
         if store_data == -1:
             return (self.h, self.l2_error)
-        elif storedata > 1:
+        elif store_data > 1:
             return self.dt
-        for n in range(1, self.Nt):
-            Unp1[:] = 2*Un - Unm1 + (self.C*self.dt)**2* (self.D2@Un + Un@ self.D2.transpose())
+        for n in range(2, self.Nt+1):
+            Unp1[:] = 2*Un - Unm1 + (self.cfl*self.dt)**2* (D@Un + Un@D.transpose())
             # Boundary conditions:
-            Unp1[0] = 0
-            Unp1[-1] = 0
-            Unp1[:,-1] = 0
-            Unp1[:,0] = 0
+            self.apply_bcs()
             # Swap solutions:
             Unm1[:] = Un
             Un[:] = Unp1
@@ -126,7 +139,7 @@ class Wave2D:
                 plotdata[n] = Unm1.copy() #which is what Un was earlier
         return self.xij, self.yij, self.plotdata
 
-    def convergence_rates(self, m=4, cfl=0.1, Nt=10, mx=3, my=3):
+    def convergence_rates(self, m=4, cfl=0.1, Nt=10, mx=3, my=3): #Michael
         """Compute convergence rates for a range of discretizations
 
         Parameters
@@ -170,12 +183,12 @@ class Wave2D_Neumann(Wave2D):
     def apply_bcs(self):
         raise NotImplementedError
 
-def test_convergence_wave2d():
+def test_convergence_wave2d(): #Michael
     sol = Wave2D()
     r, E, h = sol.convergence_rates(mx=2, my=3)
     assert abs(r[-1]-2) < 1e-2
 
-def test_convergence_wave2d_neumann():
+def test_convergence_wave2d_neumann(): #Michael
     solN = Wave2D_Neumann()
     r, E, h = solN.convergence_rates(mx=2, my=3)
     assert abs(r[-1]-2) < 0.05
