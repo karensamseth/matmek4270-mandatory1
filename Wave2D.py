@@ -124,10 +124,6 @@ class Wave2D:
         Unm1[:] = self.ue(self.mx, self.my, self.xij, self.yij, t=0)    #u0 initial condition, ie. ue at t=0
         Un[:] = Unm1[:] + 0.5*(self.cfl/self.dt)**2* (D@Un + Un@D.transpose())
         plotdata = {0: Unm1.copy()}
-        if store_data == -1:
-            return (self.h, self.l2_error)
-        elif store_data > 1:
-            return self.dt
         for n in range(2, self.Nt+1):
             Unp1[:] = 2*Un - Unm1 + (self.cfl*self.dt)**2* (D@Un + Un@D.transpose())
             # Boundary conditions:
@@ -137,6 +133,10 @@ class Wave2D:
             Un[:] = Unp1
             if n % store_data == 0:
                 plotdata[n] = Unm1.copy() #which is what Un was earlier
+        if store_data == -1:
+            return (self.h, self.l2_error)
+        elif store_data > 0:
+            return {"dt": self.dt, "solu":self.plotdata}
         return self.xij, self.yij, self.plotdata
 
     def convergence_rates(self, m=4, cfl=0.1, Nt=10, mx=3, my=3): #Michael
