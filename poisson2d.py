@@ -15,7 +15,7 @@ class Poisson2D:
 
     """
 
-    def __init__(self, L, ue):
+    def __init__(self, L, ue): #Michael
         """Initialize Poisson solver for the method of manufactured solutions
 
         Parameters
@@ -64,7 +64,7 @@ class Poisson2D:
         """Return assembled matrix A and right hand side vector b"""
         f = ue.diff(x, 2) + ue.diff(y, 2)
         F = sp.lambdify((x, y), f)(self.xij,self.yij)
-        print(F)
+        print("F=\n",F)
         A = self.laplace()
         A = A.tolil()
         bnds = self.get_boundary_indices()
@@ -73,6 +73,7 @@ class Poisson2D:
             A[i,i] = 1 #oppe til venstre og nede til høyre
         b = F.ravel()
         b[bnds] = 0
+        print("b=\n",b.flatten().reshape((self.N+1, self.N+1)))
         return A.tocsr(), b
 
     def l2_error(self, u):
@@ -96,6 +97,7 @@ class Poisson2D:
         self.create_mesh(N)
         A, b = self.assemble()
         self.U = sparse.linalg.spsolve(A, b.flatten()).reshape((N+1, N+1))
+        print("U=\n",self.U.reshape((N+1,N+1)))
         return self.U
 
     def convergence_rates(self, m=6): #Michael
@@ -120,7 +122,7 @@ class Poisson2D:
             u = self(N0)
             E.append(self.l2_error(u))
             h.append(self.h)
-            N0 /= 2
+            N0 *= 2
         r = [np.log(E[i-1]/E[i])/np.log(h[i-1]/h[i]) for i in range(1, m+1, 1)]
         return r, np.array(E), np.array(h)
 
