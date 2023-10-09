@@ -2,6 +2,7 @@ import numpy as np
 import sympy as sp
 import scipy.sparse as sparse
 import matplotlib.pyplot as plt
+from scipy.interpolate import lagrange
 
 x, y = sp.symbols('x,y')
 
@@ -102,6 +103,8 @@ class Poisson2D:
         A, b = self.assemble()
         self.U = sparse.linalg.spsolve(A, b.flatten()).reshape((N+1, N+1))
         #print("U=\n",self.U.reshape((N+1,N+1)))
+        #plt.contourf(self.xij,self.yij,self.U)
+        #plt.show()
         return self.U
 
     def convergence_rates(self, m=6): #Michael
@@ -129,6 +132,47 @@ class Poisson2D:
             N0 *= 2
         r = [np.log(E[i-1]/E[i])/np.log(h[i-1]/h[i]) for i in range(1, m+1, 1)]
         return r, np.array(E), np.array(h)
+    
+    def Lagrangebasis(self, xj, x=x):
+        """Construct Lagrange basis function for points in xj
+        
+        Parameters
+        --------
+        xj : array
+            Interpolation points
+        x : sympy symbol
+        
+        Returns
+        --------
+        Lagrange basis functions
+        """
+        n = len(xj)
+        ell = []
+        numert = sp.Mul(*[x-xj[i] for i in range(n)])
+        
+        for i in range(n):
+            numer = numert/(x-xj[i])
+            denom = sp.Mul(*[(xj[i]-xj[j]) for j in range(n) if i!=j])
+            ell.append(numer/denom)
+        return ell
+    
+    def Lagrangefunction2D(self, u, basisx, basisy):
+        """Return Lagrange polynomial for 2D case
+        
+        Parameters
+        --------
+        u : array
+            Mesh function values
+        basisx : tuple of Lagrange basis functions
+            Output from Lagrangebasis
+        basisy : same as over.
+        """
+        N, M = u.shape
+        f = 0
+        for i in range(N):
+            for j in range(M):
+                f += basisx[i]*basisy[j]*u[i,j]
+        return f
 
     def eval(self, x_coord, y_coord):
         """Return u(x, y)
@@ -143,7 +187,7 @@ class Poisson2D:
         The value of u(x, y)
 
         """
-        # Finner punktene som er rundt (x_coord,y_coord): (tilsvarende for x og y)
+        # Finner de 4 punktene som er rundt (x_coord,y_coord): 
         print("h=",self.h)
         print("evalueringspunkt:",x_coord,y_coord)
         for xi in self.x: #x-koord.
@@ -162,61 +206,25 @@ class Poisson2D:
                 y_upper = yi
         print("x ligger mellom punktene ",x_lower,x_upper)
         print("y ligger mellom punktene ",y_lower,y_upper)
-        x_interppunkter = [x_lower-self.h, x_lower, x_upper,x_upper+self.h]
-        ix_lower = np.where(self.x == x_lower)[0]
-        ix_upper = np.where(self.x == x_upper)[0]
-        if x_interppunkter[0] < min(self.x):
-            x_interppunkter[0] = self.x[ix_upper+2]
-        else:
-            x_interppunkter[0] = self.x[ix_lower-1]
-        if x_interppunkter[-1] > max(self.x):
-            x_interppunkter[-1] = self.x[ix_lower-2]
-        else:
-            x_interppunkter[-1] = self.x[ix_upper+1]
-        x_interppunkter = sorted(x_interppunkter)
-        print("x sortert:", x_interppunkter)
-        y_interppunkter = [y_lower-self.h, y_lower, y_upper,y_upper+self.h]
-        iy_lower = np.where(self.y == y_lower)[0]
-        iy_upper = np.where(self.y == y_upper)[0]
-        if y_interppunkter[0] < min(self.y):
-            y_interppunkter[0] = self.y[iy_upper+2]
-        else:
-            y_interppunkter[0] = self.y[iy_lower-1]
-        if y_interppunkter[-1] > max(self.y):
-            y_interppunkter[-1] = self.y[iy_lower-2]
-        else:
-            y_interppunkter[-1] = self.y[iy_upper+1]
-        y_interppunkter = sorted(y_interppunkter)
-        u_interppunkter = [self.U[ix_lower-1,iy_lower-1], self.U[ix_lower,iy_lower],\
-                           self.U[ix_upper,iy_upper], self.U[ix_upper+1,iy_upper+1]]
+        ix_lower = int(np.where(self.x == x_lower)[0])
+        ix_upper = int(np.where(self.x == x_upper)[0])
+        x_interppunkter = slice(ix_lower,ix_upper+1)
+        iy_lower = int(np.where(self.y == y_lower)[0])
+        iy_upper = int(np.where(self.y == y_upper)[0])
+        y_interppunkter = slice(iy_lower,iy_upper+1)
+        #u_interppunkter = [[self.U[ix_lower,iy_upper], self.U[ix_upper,iy_upper]],\
+        #                   [self.U[ix_lower,iy_lower], self.U[ix_upper,iy_lower]]]
+        u_interppunkter = self.U[x_interppunkter, y_interppunkter]
         print("u-verdier:", u_interppunkter)
-        # Lagrange basis: (lik for x og y)
-        nx = len(x_interppunkter)
-        ellx = []
-        numertx = sp.Mul(*[x-x_interppunkter[i] for i in range(nx)])
-        for i in range(nx):
-            numer = numertx/(x-x_interppunkter[i])
-            denom = sp.Mul(*[(x_interppunkter[i]-x_interppunkter[j]) for j in range(nx) if i!=j])
-            ellx.append(numer/denom)
-        basisx = ellx
-        ny = len(y_interppunkter)
-        elly = []
-        numerty = sp.Mul(*[y-y_interppunkter[i] for i in range(ny)])
-        for i in range(ny):
-            numer = numerty/(y-y_interppunkter[i])
-            denom = sp.Mul(*[(y_interppunkter[i]-y_interppunkter[j]) for j in range(ny) if i!=j])
-            elly.append(numer/denom)
-        basisy = elly
-        # Lagrange interpolating polynomial:
-        N, M = self.U.shape
-        f = 0
-        for i in range(N):
-            for j in range(M):
-                f += basisx[i]*basisy[i]*u_interppunkter[i,j]
-        print("f",f)
-        # Using Lagrange to evaluate point:
-        #gjør om f til en funksjon og evaluer i x_coord
-        return print("ikke ferdig")
+        # Lagrange basis: 
+        lx = self.Lagrangebasis([x_lower,x_upper], x=x)
+        ly = self.Lagrangebasis([y_lower,y_upper], x=y)
+        # Lagrange function:
+        f = self.Lagrangefunction2D(u_interppunkter, lx, ly)
+        f_eval = f.subs({x: x_coord, y: y_coord})
+        print ("u poly: " ,sp.simplify(f))
+        print("u-verdi i punktet:", f_eval)
+        return f_eval
 
 def test_convergence_poisson2d(): #Michael
     # This exact solution is NOT zero on the entire boundary
@@ -243,7 +251,9 @@ if __name__ == '__main__':
     ue = sp.exp(sp.cos(4*sp.pi*x)*sp.sin(2*sp.pi*y))
     sol = Poisson2D(1, ue)
     U = sol(100)
+    #ue_func_evaluated = sp.lambdify((x,y),ue)(sol.xij,sol.yij)
+    #plt.contourf(sol.xij,sol.yij, ue_func_evaluated)
+    #plt.show()
     K2 = abs(sol.eval(sol.h/2, 1-sol.h/2) - ue.subs({x: sol.h, y: 1-sol.h/2}).n()) < 1e-3
-    print(K2,"Hvis denne er tom må du interpolere!!")
     #K1 = abs(sol.eval(0.52, 0.63) - ue.subs({x: 0.52, y: 0.63}).n()) < 1e-3
     #print("K1=", K1)
