@@ -15,7 +15,7 @@ class Wave2D:
         """Create 2D mesh and store in self.xij and self.yij"""
         self.L = 1
         self.N = N
-        self.h = self.L/N #dx = dy
+        self.h = self.L/self.N #dx = dy =h
         x = self.x = np.linspace(0, self.L, self.N+1)
         y = self.y = np.linspace(0, self.L, self.N+1)
         self.xij, self.yij = np.meshgrid(x,y,indexing='ij')
@@ -119,7 +119,7 @@ class Wave2D:
         self.c = c
         self.mx = mx
         self.my = my
-        Unp1, Un, Unm1 = np.zeros((2, self.N+1, self.N+1))
+        Unp1, Un, Unm1 = np.zeros((3, self.N+1, self.N+1))
         D = (1/self.h)*self.D2()
         Unm1[:] = self.ue(self.mx, self.my, self.xij, self.yij, t=0)    #u0 initial condition, ie. ue at t=0
         Un[:] = Unm1[:] + 0.5*(self.cfl/self.dt)**2* (D@Un + Un@D.transpose())
@@ -195,3 +195,9 @@ def test_convergence_wave2d_neumann(): #Michael
 
 def test_exact_wave2d():
     raise NotImplementedError
+    
+if __name__ == "__main__":
+    sol = Wave2D()
+    r, E, h = sol.convergence_rates(mx=2, my=3)
+    K = abs(r[-1]-2) < 1e-2  
+    print("Test konvergens Dirichlet:", K)
