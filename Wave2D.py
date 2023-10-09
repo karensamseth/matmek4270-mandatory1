@@ -19,6 +19,7 @@ class Wave2D:
         x = self.x = np.linspace(0, self.L, self.N+1)
         y = self.y = np.linspace(0, self.L, self.N+1)
         self.xij, self.yij = np.meshgrid(x,y,indexing='ij')
+        return self.h
 
     def D2(self):
         """Return second order differentiation matrix"""
@@ -34,7 +35,7 @@ class Wave2D:
         ky = self.my*sp.pi
         return self.c*np.sqrt(kx**2+ky**2)
 
-    def ue(self, mx, my,x,y,t): #Michael
+    def ue(self, mx, my, x, y, t): #Michael
         """Return the exact standing wave"""
         return sp.sin(mx*sp.pi*x)*sp.sin(my*sp.pi*y)*sp.cos(self.w*t)
 
@@ -119,6 +120,7 @@ class Wave2D:
         self.c = c
         self.mx = mx
         self.my = my
+        self.h = self.create_mesh(self.N)
         Unp1, Un, Unm1 = np.zeros((3, self.N+1, self.N+1))
         D = (1/self.h)*self.D2()
         Unm1[:] = self.ue(self.mx, self.my, self.xij, self.yij, t=0)    #u0 initial condition, ie. ue at t=0
