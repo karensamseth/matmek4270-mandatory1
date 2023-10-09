@@ -71,14 +71,9 @@ class Poisson2D:
         for i in bnds:
             A[i] = 0 #rundt kanten
             A[i,i] = 1 #oppe til venstre og nede til høyre
-        #plt.spy(A, ms=0.4)
-        #plt.show()
-        #raise RuntimeError
         b = F.ravel()
         ue_func = sp.lambdify((x,y),ue)(self.xij, self.yij).ravel()
-        #print("ue=\n", ue_func.reshape((self.N+1, self.N+1)))
         b[bnds] = ue_func[bnds]
-        #print("b=\n",b.flatten().reshape((self.N+1, self.N+1)))
         return A.tocsr(), b
 
     def l2_error(self, u):
@@ -102,9 +97,6 @@ class Poisson2D:
         self.create_mesh(N)
         A, b = self.assemble()
         self.U = sparse.linalg.spsolve(A, b.flatten()).reshape((N+1, N+1))
-        #print("U=\n",self.U.reshape((N+1,N+1)))
-        #plt.contourf(self.xij,self.yij,self.U)
-        #plt.show()
         return self.U
 
     def convergence_rates(self, m=6): #Michael
@@ -191,39 +183,45 @@ class Poisson2D:
         print("h=",self.h)
         print("evalueringspunkt:",x_coord,y_coord)
         for xi in self.x: #x-koord.
-            if x_coord-xi<self.h and x_coord-xi>0:
-                x_lower = xi
-            elif x_coord-xi==self.h:
+            if x_coord-xi==0:
                 break
+            elif x_coord-xi<self.h and x_coord-xi>0:
+                x_lower = xi
             elif -(x_coord-xi)<self.h and -(x_coord-xi)>0:
                 x_upper = xi
         for yi in self.y: #y-koord
-            if y_coord-yi<self.h and y_coord-yi>0:
-                y_lower = yi
-            elif y_coord-yi==self.h:
+            if y_coord-yi==0:
                 break
+            elif y_coord-yi<self.h and y_coord-yi>0:
+                y_lower = yi
             elif -(y_coord-yi)<self.h and -(y_coord-yi)>0:
                 y_upper = yi
-        print("x ligger mellom punktene ",x_lower,x_upper)
-        print("y ligger mellom punktene ",y_lower,y_upper)
-        ix_lower = int(np.where(self.x == x_lower)[0])
-        ix_upper = int(np.where(self.x == x_upper)[0])
-        x_interppunkter = slice(ix_lower,ix_upper+1)
-        iy_lower = int(np.where(self.y == y_lower)[0])
-        iy_upper = int(np.where(self.y == y_upper)[0])
-        y_interppunkter = slice(iy_lower,iy_upper+1)
-        #u_interppunkter = [[self.U[ix_lower,iy_upper], self.U[ix_upper,iy_upper]],\
-        #                   [self.U[ix_lower,iy_lower], self.U[ix_upper,iy_lower]]]
-        u_interppunkter = self.U[x_interppunkter, y_interppunkter]
-        print("u-verdier:", u_interppunkter)
-        # Lagrange basis: 
-        lx = self.Lagrangebasis([x_lower,x_upper], x=x)
-        ly = self.Lagrangebasis([y_lower,y_upper], x=y)
-        # Lagrange function:
-        f = self.Lagrangefunction2D(u_interppunkter, lx, ly)
-        f_eval = f.subs({x: x_coord, y: y_coord})
-        print ("u poly: " ,sp.simplify(f))
-        print("u-verdi i punktet:", f_eval)
+        if 'x_upper' in locals():    
+            print("x ligger mellom punktene ",x_lower,x_upper)
+            print("y ligger mellom punktene ",y_lower,y_upper)
+            ix_lower = int(np.where(self.x == x_lower)[0])
+            ix_upper = int(np.where(self.x == x_upper)[0])
+            x_interppunkter = slice(ix_lower,ix_upper+1)
+            iy_lower = int(np.where(self.y == y_lower)[0])
+            iy_upper = int(np.where(self.y == y_upper)[0])
+            y_interppunkter = slice(iy_lower,iy_upper+1)
+            #u_interppunkter = [[self.U[ix_lower,iy_upper], self.U[ix_upper,iy_upper]],\
+            #                   [self.U[ix_lower,iy_lower], self.U[ix_upper,iy_lower]]]
+            u_interppunkter = self.U[x_interppunkter, y_interppunkter]
+            print("u-verdier:", u_interppunkter)
+            # Lagrange basis: 
+            lx = self.Lagrangebasis([x_lower,x_upper], x=x)
+            ly = self.Lagrangebasis([y_lower,y_upper], x=y)
+            # Lagrange function:
+            f = self.Lagrangefunction2D(u_interppunkter, lx, ly)
+            f_eval = f.subs({x: x_coord, y: y_coord})
+            print ("u poly: " ,sp.simplify(f))
+            print("u-verdi i punktet:", f_eval)
+        else:
+            ix_coord = int(np.where(self.x == x_coord)[0])
+            iy_coord = int(np.where(self.y == y_coord)[0])
+            f_eval = self.U[ix_coord,iy_coord]
+            print("u-verdi i punktet: (eksakt) ", f_eval)
         return f_eval
 
 def test_convergence_poisson2d(): #Michael
@@ -241,19 +239,20 @@ def test_interpolation(): #Michael
     assert abs(sol.eval(sol.h/2, 1-sol.h/2) - ue.subs({x: sol.h, y: 1-sol.h/2}).n()) < 1e-3
 
 if __name__ == '__main__':
-    """
+    
     ue = sp.exp(sp.cos(4*sp.pi*x)*sp.sin(2*sp.pi*y))
     sol = Poisson2D(1, ue)
     r, E, h = sol.convergence_rates()
+    print("r ",r[-1])
     K = abs(r[-1]-2) < 1e-2
-    print(K)
-    """
+    print("test convergence:",K,"\n")
+    
+    print("Test interpolation:")
     ue = sp.exp(sp.cos(4*sp.pi*x)*sp.sin(2*sp.pi*y))
     sol = Poisson2D(1, ue)
     U = sol(100)
-    #ue_func_evaluated = sp.lambdify((x,y),ue)(sol.xij,sol.yij)
-    #plt.contourf(sol.xij,sol.yij, ue_func_evaluated)
-    #plt.show()
+    K1 = abs(sol.eval(0.52, 0.63) - ue.subs({x: 0.52, y: 0.63}).n()) < 1e-3
+    print("K1=", K1,"\n")
     K2 = abs(sol.eval(sol.h/2, 1-sol.h/2) - ue.subs({x: sol.h, y: 1-sol.h/2}).n()) < 1e-3
-    #K1 = abs(sol.eval(0.52, 0.63) - ue.subs({x: 0.52, y: 0.63}).n()) < 1e-3
-    #print("K1=", K1)
+    print("K2: ", K2)
+    
