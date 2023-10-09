@@ -63,8 +63,8 @@ class Poisson2D:
 
     def assemble(self):
         """Return assembled matrix A and right hand side vector b"""
-        f = ue.diff(x, 2) + ue.diff(y, 2)
-        F = sp.lambdify((x, y), f)(self.xij,self.yij)
+        #f = ue.diff(x, 2) + ue.diff(y, 2)
+        F = sp.lambdify((x, y), self.f)(self.xij,self.yij)
         A = self.laplace()
         A = A.tolil()
         bnds = self.get_boundary_indices()
@@ -79,7 +79,7 @@ class Poisson2D:
     def l2_error(self, u):
         """Return l2-error norm"""
         uj = sp.lambdify([x,y], self.ue)(self.x, self.y) #evaluerer ue i meshpoints
-        return np.sqrt(self.h*np.sum((uj-u)**2))        
+        return np.sqrt(self.h**2*np.sum((uj-u)**2))        
 
     def __call__(self, N): #Michael
         """Solve Poisson's equation.
@@ -239,11 +239,10 @@ def test_interpolation(): #Michael
     assert abs(sol.eval(sol.h/2, 1-sol.h/2) - ue.subs({x: sol.h, y: 1-sol.h/2}).n()) < 1e-3
 
 if __name__ == '__main__':
-    
     ue = sp.exp(sp.cos(4*sp.pi*x)*sp.sin(2*sp.pi*y))
     sol = Poisson2D(1, ue)
     r, E, h = sol.convergence_rates()
-    print("r ",r[-1])
+    print("siste r: ",r[-1])
     K = abs(r[-1]-2) < 1e-2
     print("test convergence:",K,"\n")
     
