@@ -78,7 +78,7 @@ class Poisson2D:
 
     def l2_error(self, u):
         """Return l2-error norm"""
-        uj = sp.lambdify([x,y], self.ue)(self.x, self.y) #evaluerer ue i meshpoints
+        uj = sp.lambdify((x,y), self.ue)(self.x, self.y) #evaluerer ue i meshpoints
         return np.sqrt(self.h**2*np.sum((uj-u)**2))        
 
     def __call__(self, N): #Michael
@@ -205,8 +205,6 @@ class Poisson2D:
             iy_lower = int(np.where(self.y == y_lower)[0])
             iy_upper = int(np.where(self.y == y_upper)[0])
             y_interppunkter = slice(iy_lower,iy_upper+1)
-            #u_interppunkter = [[self.U[ix_lower,iy_upper], self.U[ix_upper,iy_upper]],\
-            #                   [self.U[ix_lower,iy_lower], self.U[ix_upper,iy_lower]]]
             u_interppunkter = self.U[x_interppunkter, y_interppunkter]
             print("u-verdier:", u_interppunkter)
             # Lagrange basis: 
@@ -251,7 +249,7 @@ if __name__ == '__main__':
     sol = Poisson2D(1, ue)
     U = sol(100)
     K1 = abs(sol.eval(0.52, 0.63) - ue.subs({x: 0.52, y: 0.63}).n()) < 1e-3
-    print("K1=", K1,"\n")
+    print("test1: ", K1,"\n")
     K2 = abs(sol.eval(sol.h/2, 1-sol.h/2) - ue.subs({x: sol.h, y: 1-sol.h/2}).n()) < 1e-3
-    print("K2: ", K2)
+    print("test2: ", K2)
     
