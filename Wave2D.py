@@ -209,7 +209,13 @@ def test_convergence_wave2d_neumann(): #Michael
     assert abs(r[-1]-2) < 0.05
 
 def test_exact_wave2d():
-    raise NotImplementedError
+    solD = Wave2D()
+    solN = Wave2D_Neumann()
+    tol = 1E-15
+    hD,errD = solD(N=10, Nt=10, cfl = 1/np.sqrt(2)) #by default, mx = my
+    hN,errN = solN(N=10, Nt=10, cfl = 1/np.sqrt(2))
+    assert abs(errD) < tol
+    assert abs(errN) < tol
     
 if __name__ == "__main__":
     #sol = Wave2D()
@@ -217,7 +223,18 @@ if __name__ == "__main__":
     #K = abs(r[-1]-2) < 1e-2  
     #print("Test konvergens Dirichlet:", K)
     
+    #solN = Wave2D_Neumann()
+    #r, E, h = solN.convergence_rates(mx=2, my=3)
+    #K2= abs(r[-1]-2) < 0.05
+    #print("Test konvergens Neumann:", K2)
+    
+    solD = Wave2D()
     solN = Wave2D_Neumann()
-    r, E, h = solN.convergence_rates(mx=2, my=3)
-    K2= abs(r[-1]-2) < 0.05
-    print("Test konvergens Neumann:", K2)
+    tol = 1E-15
+    hD,errD = solD(N=8, Nt=10, cfl = 1/np.sqrt(2)) #by default, mx = my
+    hN,errN = solN(N=8, Nt=10, cfl = 1/np.sqrt(2))
+    print("err",errD)
+    K3 = abs(errD) < tol
+    print("Test l2-error 1:",K3)
+    K4 = abs(errN) < tol
+    print("Test l2-error 2:",K4)
