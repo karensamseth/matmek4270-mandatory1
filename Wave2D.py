@@ -183,14 +183,20 @@ class Wave2D:
 
 class Wave2D_Neumann(Wave2D):
 
-    def D2(self, N):
-        raise NotImplementedError
+    def D2(self):
+        """Return second order differentiation matrix with Neumann bc"""
+        D = sparse.diags([1,-2,1], [-1,0,1], (self.N+1, self.N+1),'lil')
+        D[0, :2] = -2, 2
+        D[-1, -2:] = 2, -2
+        return D
 
-    def ue(self, mx, my):
-        raise NotImplementedError
+    def ue(self, mx, my, x, y, t):
+        """Return the exact standing wave"""
+        return sp.cos(mx*sp.pi*x)*sp.cos(my*sp.pi*y)*sp.cos(self.w*t)
 
     def apply_bcs(self):
-        raise NotImplementedError
+        """Apply Neumann boundary conditions to solution vector"""
+        return "BC already implemented in the new D2."
 
 def test_convergence_wave2d(): #Michael
     sol = Wave2D()
@@ -206,7 +212,12 @@ def test_exact_wave2d():
     raise NotImplementedError
     
 if __name__ == "__main__":
-    sol = Wave2D()
-    r, E, h = sol.convergence_rates(mx=2, my=3)
-    K = abs(r[-1]-2) < 1e-2  
-    print("Test konvergens Dirichlet:", K)
+    #sol = Wave2D()
+    #r, E, h = sol.convergence_rates(mx=2, my=3)
+    #K = abs(r[-1]-2) < 1e-2  
+    #print("Test konvergens Dirichlet:", K)
+    
+    solN = Wave2D_Neumann()
+    r, E, h = solN.convergence_rates(mx=2, my=3)
+    K2= abs(r[-1]-2) < 0.05
+    print("Test konvergens Neumann:", K2)
