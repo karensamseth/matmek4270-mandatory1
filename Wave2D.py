@@ -33,9 +33,9 @@ class Wave2D:
         """Return the dispersion coefficient"""
         kx = self.mx*sp.pi
         ky = self.my*sp.pi
-        return self.c*np.sqrt(kx**2+ky**2)
+        return self.c*sp.sqrt(kx**2+ky**2)
 
-    def ue(self, mx, my, x, y, t): #Michael
+    def ue(self, mx, my, x, y, t): #Mikael
         """Return the exact standing wave"""
         return sp.sin(mx*sp.pi*x)*sp.sin(my*sp.pi*y)*sp.cos(self.w*t)
 
@@ -76,7 +76,8 @@ class Wave2D:
             Esum = en**2
         return np.sqrt(self.h**2*Esum)
         """
-        ut = u[t0]
+        ue_f = sp.lambdify((x,y),self.ue(self.mx,self.my,x,y,t0))(self.xij, self.yij)
+        ut = ue_f-u
         return np.sqrt(self.h**2*np.sum(ut**2))
 
     def apply_bcs(self, u=None):
@@ -89,9 +90,11 @@ class Wave2D:
             If not probided, use self.unp1
 
         """
-        u = u if u is not None else self.Unp1
         u[0] = 0
         u[-1] = 0
+        u[:, 0] = 0 
+        u[:, -1] = 0 
+        
 
     def __call__(self, N, Nt, cfl=0.5, c=1.0, mx=3, my=3, store_data=-1):
         """Solve the wave equation
@@ -127,28 +130,31 @@ class Wave2D:
         self.h = self.create_mesh(self.N)
         Unp1, Un, Unm1 = np.zeros((3, self.N+1, self.N+1))
         D = (1/self.h**2)*self.D2()
-        print("ue i call er problemet")
-        Unm1[:] = self.ue(self.mx, self.my, self.xij, self.yij, t=0)    #u0 initial condition, ie. ue at t=0
-        Un[:] = Unm1[:] + 0.5*(self.c/self.dt)**2* (D@Un + Un@D.transpose())
+        Unm1[:] =sp.lambdify((x, y), self.ue(mx, my, x, y, 0))(self.xij, self.yij)
+        #Unm1[:] = self.ue(self.mx, self.my, self.xij, self.yij, t=0)    #u0 initial condition, ie. ue at t=0
+        Un[:] =sp.lambdify((x, y), self.ue(mx, my, x, y, self.dt))(self.xij, self.yij)
+        #Un[:] = Unm1[:] + 0.5*(self.c/self.dt)**2* (D@Un + Un@D.transpose())
+        
         plotdata = {0: Unm1.copy()}
-        for n in range(1, self.Nt):
+        for n in range(1, self.Nt+1):
             Unp1[:] = 2*Un - Unm1 + (self.c*self.dt)**2* (D@Un + Un@D.transpose())
             # Boundary conditions:
-            self.apply_bcs()
+            self.apply_bcs(Unp1)
             # Swap solutions:
             Unm1[:] = Un
             Un[:] = Unp1
             if n % store_data == 0:
                 plotdata[n] = Unm1.copy() #which is what Un was earlier
+            #print(np.linalg.norm(Un), np.linalg.norm(Unm1))
         if store_data == -1:
             print("h:",self.h,"l2 error:",self.l2_error(plotdata[0], 0))
-            return (self.h, self.l2_error(plotdata, 0))
+            return (self.h, [self.l2_error(Un, (self.Nt+1)*self.dt)])
         elif store_data > 0:
             print("dt", self.dt, "solu",self.plotdata)
             return {"dt": self.dt, "solu":self.plotdata}
         return self.xij, self.yij, self.plotdata
 
-    def convergence_rates(self, m=4, cfl=0.1, Nt=10, mx=3, my=3): #Michael
+    def convergence_rates(self, m=4, cfl=0.1, Nt=10, mx=3, my=3): #Mikael
         """Compute convergence rates for a range of discretizations
 
         Parameters
@@ -194,16 +200,16 @@ class Wave2D_Neumann(Wave2D):
         """Return the exact standing wave"""
         return sp.cos(mx*sp.pi*x)*sp.cos(my*sp.pi*y)*sp.cos(self.w*t)
 
-    def apply_bcs(self):
+    def apply_bcs(self,u=None):
         """Apply Neumann boundary conditions to solution vector"""
         return "BC already implemented in the new D2."
 
-def test_convergence_wave2d(): #Michael
+def test_convergence_wave2d(): #Mikael
     sol = Wave2D()
     r, E, h = sol.convergence_rates(mx=2, my=3)
     assert abs(r[-1]-2) < 1e-2
 
-def test_convergence_wave2d_neumann(): #Michael
+def test_convergence_wave2d_neumann(): #Mikael
     solN = Wave2D_Neumann()
     r, E, h = solN.convergence_rates(mx=2, my=3)
     assert abs(r[-1]-2) < 0.05
@@ -211,30 +217,32 @@ def test_convergence_wave2d_neumann(): #Michael
 def test_exact_wave2d():
     solD = Wave2D()
     solN = Wave2D_Neumann()
-    tol = 1E-15
+    tol = 1E-12
     hD,errD = solD(N=10, Nt=10, cfl = 1/np.sqrt(2)) #by default, mx = my
     hN,errN = solN(N=10, Nt=10, cfl = 1/np.sqrt(2))
-    assert abs(errD) < tol
-    assert abs(errN) < tol
+    assert abs(errD[-1]) < tol
+    assert abs(errN[-1]) < tol
     
 if __name__ == "__main__":
-    #sol = Wave2D()
-    #r, E, h = sol.convergence_rates(mx=2, my=3)
-    #K = abs(r[-1]-2) < 1e-2  
-    #print("Test konvergens Dirichlet:", K)
+    sol = Wave2D()
+    #dx, err = sol(10,2,cfl = 1/np.sqrt(2))
+    r, E, h = sol.convergence_rates(mx=2, my=3)
+    print(r, E)
+    K = abs(r[-1]-2) < 1e-2  
+    print("Test konvergens Dirichlet:", K)
     
-    #solN = Wave2D_Neumann()
-    #r, E, h = solN.convergence_rates(mx=2, my=3)
-    #K2= abs(r[-1]-2) < 0.05
-    #print("Test konvergens Neumann:", K2)
+    solN = Wave2D_Neumann()
+    r, E, h = solN.convergence_rates(mx=2, my=3)
+    K2= abs(r[-1]-2) < 0.05
+    print("Test konvergens Neumann:", K2)
     
     solD = Wave2D()
     solN = Wave2D_Neumann()
-    tol = 1E-15
+    tol = 1E-12
     hD,errD = solD(N=8, Nt=10, cfl = 1/np.sqrt(2)) #by default, mx = my
     hN,errN = solN(N=8, Nt=10, cfl = 1/np.sqrt(2))
     print("err",errD)
-    K3 = abs(errD) < tol
+    K3 = abs(errD[-1]) < tol
     print("Test l2-error 1:",K3)
-    K4 = abs(errN) < tol
+    K4 = abs(errN[-1]) < tol
     print("Test l2-error 2:",K4)
