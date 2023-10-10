@@ -215,7 +215,7 @@ def make_animation():
         frames.append([frame])
     ani = animation.ArtistAnimation(fig, frames, interval=400, blit=True, 
                                     repeat_delay=1000)
-    ani.save('./report/Wave2dmovie.apng', writer='pillow', fps=5)
+    ani.save('./report/neumannwave.gif', writer='pillow', fps=5)
 
 def test_convergence_wave2d(): #Mikael
     sol = Wave2D()
