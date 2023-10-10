@@ -68,12 +68,16 @@ class Wave2D:
         t0 : number
             The time of the comparison
         """
+        """
         Esum = 0
         for n in range(self.N+1):
             Un = self.plotdata(n)
             en = Un-self.ue(self.mx,self.my)  #dette er nok feil...
             Esum = en**2
         return np.sqrt(self.h**2*Esum)
+        """
+        ut = u[t0]
+        return np.sqrt(self.h**2*np.sum(ut**2))
 
     def apply_bcs(self, u=None):
         """Apply Dirichlet boundary conditions to solution vector
@@ -122,12 +126,13 @@ class Wave2D:
         self.my = my
         self.h = self.create_mesh(self.N)
         Unp1, Un, Unm1 = np.zeros((3, self.N+1, self.N+1))
-        D = (1/self.h)*self.D2()
+        D = (1/self.h**2)*self.D2()
+        print("ue i call er problemet")
         Unm1[:] = self.ue(self.mx, self.my, self.xij, self.yij, t=0)    #u0 initial condition, ie. ue at t=0
-        Un[:] = Unm1[:] + 0.5*(self.cfl/self.dt)**2* (D@Un + Un@D.transpose())
+        Un[:] = Unm1[:] + 0.5*(self.c/self.dt)**2* (D@Un + Un@D.transpose())
         plotdata = {0: Unm1.copy()}
-        for n in range(2, self.Nt+1):
-            Unp1[:] = 2*Un - Unm1 + (self.cfl*self.dt)**2* (D@Un + Un@D.transpose())
+        for n in range(1, self.Nt):
+            Unp1[:] = 2*Un - Unm1 + (self.c*self.dt)**2* (D@Un + Un@D.transpose())
             # Boundary conditions:
             self.apply_bcs()
             # Swap solutions:
@@ -136,8 +141,10 @@ class Wave2D:
             if n % store_data == 0:
                 plotdata[n] = Unm1.copy() #which is what Un was earlier
         if store_data == -1:
-            return (self.h, self.l2_error)
+            print("h:",self.h,"l2 error:",self.l2_error(plotdata[0], 0))
+            return (self.h, self.l2_error(plotdata, 0))
         elif store_data > 0:
+            print("dt", self.dt, "solu",self.plotdata)
             return {"dt": self.dt, "solu":self.plotdata}
         return self.xij, self.yij, self.plotdata
 
