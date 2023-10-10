@@ -3,6 +3,7 @@ import sympy as sp
 import scipy.sparse as sparse
 import matplotlib.pyplot as plt
 from matplotlib import cm
+import matplotlib.animation as animation
 
 x, y, t = sp.symbols('x,y,t')
 
@@ -150,9 +151,8 @@ class Wave2D:
             print("h:",self.h,"l2 error:",self.l2_error(plotdata[0], 0))
             return (self.h, [self.l2_error(Un, (self.Nt+1)*self.dt)])
         elif store_data > 0:
-            print("dt", self.dt, "solu",self.plotdata)
-            return {"dt": self.dt, "solu":self.plotdata}
-        return self.xij, self.yij, self.plotdata
+        #    return {"dt": self.dt, "solu": plotdata}
+            return self.xij, self.yij, plotdata
 
     def convergence_rates(self, m=4, cfl=0.1, Nt=10, mx=3, my=3): #Mikael
         """Compute convergence rates for a range of discretizations
@@ -203,6 +203,19 @@ class Wave2D_Neumann(Wave2D):
     def apply_bcs(self,u=None):
         """Apply Neumann boundary conditions to solution vector"""
         return "BC already implemented in the new D2."
+    
+#Lager animasjon av Neumann-problemet:
+def make_animation(): 
+    solN = Wave2D_Neumann()
+    xij, yij, data = solN(40, 501, cfl=1/np.sqrt(2), mx=2, my=2, store_data=5)
+    fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
+    frames = []
+    for n, val in data.items():
+        frame = ax.plot_wireframe(xij, yij, val, rstride=2, cstride=2);
+        frames.append([frame])
+    ani = animation.ArtistAnimation(fig, frames, interval=400, blit=True, 
+                                    repeat_delay=1000)
+    ani.save('./report/Wave2dmovie.apng', writer='pillow', fps=5)
 
 def test_convergence_wave2d(): #Mikael
     sol = Wave2D()
@@ -246,3 +259,6 @@ if __name__ == "__main__":
     print("Test l2-error 1:",K3)
     K4 = abs(errN[-1]) < tol
     print("Test l2-error 2:",K4)
+    
+    print("Lager animasjon")
+    make_animation()
