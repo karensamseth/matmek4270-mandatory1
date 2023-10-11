@@ -17,7 +17,7 @@ class Poisson2D:
 
     """
 
-    def __init__(self, L, ue): #Michael
+    def __init__(self, L, ue): #Mikael
         """Initialize Poisson solver for the method of manufactured solutions
 
         Parameters
@@ -72,16 +72,16 @@ class Poisson2D:
             A[i] = 0 #rundt kanten
             A[i,i] = 1 #oppe til venstre og nede til høyre
         b = F.ravel()
-        ue_func = sp.lambdify((x,y),ue)(self.xij, self.yij).ravel()
+        ue_func = sp.lambdify((x,y),self.ue)(self.xij, self.yij).ravel()
         b[bnds] = ue_func[bnds]
         return A.tocsr(), b
 
     def l2_error(self, u):
         """Return l2-error norm"""
-        uj = sp.lambdify((x,y), self.ue)(self.x, self.y) #evaluerer ue i meshpoints
+        uj = sp.lambdify((x,y), self.ue)(self.xij, self.yij) #evaluerer ue i meshpoints
         return np.sqrt(self.h**2*np.sum((uj-u)**2))        
 
-    def __call__(self, N): #Michael
+    def __call__(self, N): #Mikael
         """Solve Poisson's equation.
 
         Parameters
@@ -99,7 +99,7 @@ class Poisson2D:
         self.U = sparse.linalg.spsolve(A, b.flatten()).reshape((N+1, N+1))
         return self.U
 
-    def convergence_rates(self, m=6): #Michael
+    def convergence_rates(self, m=6): #Mikael
         """Compute convergence rates for a range of discretizations
 
         Parameters
@@ -123,6 +123,7 @@ class Poisson2D:
             h.append(self.h)
             N0 *= 2
         r = [np.log(E[i-1]/E[i])/np.log(h[i-1]/h[i]) for i in range(1, m+1, 1)]
+        print("r",r)
         return r, np.array(E), np.array(h)
     
     def Lagrangebasis(self, xj, x=x):
@@ -222,14 +223,14 @@ class Poisson2D:
             print("u-verdi i punktet: (eksakt) ", f_eval)
         return f_eval
 
-def test_convergence_poisson2d(): #Michael
+def test_convergence_poisson2d(): #Mikael
     # This exact solution is NOT zero on the entire boundary
     ue = sp.exp(sp.cos(4*sp.pi*x)*sp.sin(2*sp.pi*y))
     sol = Poisson2D(1, ue)
     r, E, h = sol.convergence_rates()
     assert abs(r[-1]-2) < 1e-2
 
-def test_interpolation(): #Michael
+def test_interpolation(): #Mikael
     ue = sp.exp(sp.cos(4*sp.pi*x)*sp.sin(2*sp.pi*y))
     sol = Poisson2D(1, ue)
     U = sol(100)
@@ -251,5 +252,7 @@ if __name__ == '__main__':
     K1 = abs(sol.eval(0.52, 0.63) - ue.subs({x: 0.52, y: 0.63}).n()) < 1e-3
     print("test1: ", K1,"\n")
     K2 = abs(sol.eval(sol.h/2, 1-sol.h/2) - ue.subs({x: sol.h, y: 1-sol.h/2}).n()) < 1e-3
+    ue_eval = ue.subs({x: sol.h, y: 1-sol.h/2}).n()
+    print("ue i punktet:",ue_eval)
     print("test2: ", K2)
     
